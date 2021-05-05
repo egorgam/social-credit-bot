@@ -6,5 +6,4 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY app app
 COPY store store
-COPY tests tests
 CMD ["python", "-m", "app"]
