@@ -20,7 +20,7 @@ def message(mocker):
 
 
 @pytest.fixture
-def first_user(session, message):
+def user(session, message):
     user = models.User(
         id=message.from_user.id,
         name=message.from_user.username,
@@ -29,17 +29,17 @@ def first_user(session, message):
     )
     session.add(user)
     session.commit()
-    return user
 
 
 class TestGetSocialRank:
     def test_empty_rank(self, message, session):
         result = actions.get_report_of_social_rank(message, session)
-        assert result == aliases.NoRankMessage().text
+        assert result == "NO RANK REPORT"
 
-    def test_rank_exists(self, message, session, first_user):
+    @pytest.mark.usefixtures("user")
+    def test_rank_exists(self, message, session):
         result = actions.get_report_of_social_rank(message, session)
-        assert result == f"{first_user.name}: {first_user.rank}\n"
+        assert result == "test1: 20\n"
 
 
 class TestEditSocialCredit:
@@ -54,14 +54,11 @@ class TestEditSocialCredit:
         stored_users = session.query(models.User).all()
         assert len(stored_users) == 1
         assert stored_users[0].name == message.reply_to_message.from_user.username
-        assert (
-            result
-            == aliases.SuccessRankMessage(
-                message.from_user.username,
-                action,
-                message.reply_to_message.from_user.username,
-                new_rank,
-            ).text
+        assert result == "{} {} rank of {}!\nNow their social credit is {} points".format(
+            message.from_user.username,
+            action,
+            message.reply_to_message.from_user.username,
+            new_rank
         )
 
     @pytest.mark.parametrize(
@@ -73,12 +70,4 @@ class TestEditSocialCredit:
         result = actions.edit_social_credit(
             message, session, aliases.Action.INCREASE, timeouts
         )
-        assert (
-            result
-            == aliases.SuccessRankMessage(
-                message.from_user.username,
-                action,
-                f"{message.reply_to_message.from_user.first_name} {message.reply_to_message.from_user.last_name}",
-                new_rank,
-            ).text
-        )
+        assert result == "test1 increased rank of c d!\nNow their social credit is 20 points"

@@ -5,11 +5,10 @@ from app import aliases, models
 
 
 def _calculate_rank(action, current_rank):
-    return (
-        current_rank + aliases.INC
-        if action == aliases.Action.INCREASE
-        else current_rank - aliases.INC
-    )
+    if action is aliases.Action.INCREASE:
+        return current_rank + aliases.INC
+    else:
+        return current_rank - aliases.INC
 
 
 def _actualize_user(from_user, chat_id, session):
@@ -21,10 +20,10 @@ def _actualize_user(from_user, chat_id, session):
             user.name = from_user.username
             session.commit()
 
-    if not from_user.username:
-        user_name = f"{from_user.first_name} {from_user.last_name}"
-    else:
+    if from_user.username:
         user_name = from_user.username
+    else:
+        user_name = f"{from_user.first_name} {from_user.last_name}"
 
     return from_user.id, user_name
 
@@ -65,7 +64,7 @@ def edit_social_credit(message, session, action: str, timeouts) -> Optional[str]
         new_rank = _calculate_rank(action, replied_user.rank)
         replied_user.rank = new_rank
 
-    timeouts[f"{user_id}{replied_user_id}"] = time.time()
+    timeouts[f"{user_id}|{replied_user_id}"] = time.time()
 
     session.commit()
     return aliases.SuccessRankMessage(
@@ -74,11 +73,4 @@ def edit_social_credit(message, session, action: str, timeouts) -> Optional[str]
 
 
 def get_report_of_social_rank(message, session):
-    social_rank = {}
-    for user in session.query(models.User).filter_by(chat_id=message.chat.id).all():
-        social_rank[user.name] = user.rank
-    sorted_rank = {
-        k: v
-        for k, v in sorted(social_rank.items(), key=lambda item: item[1], reverse=True)
-    }
-    return aliases.RankMessage(sorted_rank).text or aliases.NoRankMessage().text
+    return aliases.RankMessage(message, session).text or aliases.NoRankMessage().text
